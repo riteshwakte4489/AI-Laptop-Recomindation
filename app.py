@@ -249,7 +249,7 @@ with st.expander("📊 Advanced: market segmentation analysis (PCA + KMeans)"):
         "using PCA for dimensionality reduction and KMeans for clustering."
     )
 
-    n_clusters = st.slider("Number of clusters (k)", min_value=2, max_value=8, value=2, key="adv_k")
+    n_clusters = st.slider("Number of clusters (k)", min_value=2, max_value=8, value=3, key="adv_k")
     df_k, sil_k = load_and_cluster(DATA_PATH, n_clusters)
 
     m1, m2 = st.columns(2)
