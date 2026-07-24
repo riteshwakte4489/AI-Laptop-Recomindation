@@ -2,7 +2,7 @@
 AI-Powered Laptop Market Intelligence Dashboard
 ------------------------------------------------
 Streamlit app that clusters laptops into market segments using PCA + KMeans,
-then lets the user explore those segments interactively.
+then lets the user explore those segments interactively and get recommendations.
 
 Run with:
     streamlit run app.py
@@ -70,7 +70,7 @@ def load_and_cluster(path: str, n_clusters: int):
             preprocessor = joblib.load(preprocessor_path)
             pca = joblib.load(pca_path)
             kmeans = joblib.load(kmeans_path)
-            
+
             x_processed = preprocessor.transform(df)
             x_pca = pca.transform(x_processed)
             cluster = kmeans.predict(x_processed)
@@ -222,6 +222,51 @@ with col2:
     brand_mix = df.groupby([df["Cluster"].astype(str), "brand"]).size().reset_index(name="count")
     fig3 = px.bar(brand_mix, x="Cluster", y="count", color="brand")
     st.plotly_chart(fig3, use_container_width=True)
+
+st.divider()
+
+# -----------------------------------------------------------------------
+# Recommend a laptop
+# -----------------------------------------------------------------------
+st.subheader("🔍 Find your laptop")
+st.caption("Get specific laptop picks based on your budget and needs, not just the segment averages above.")
+
+rcol1, rcol2, rcol3 = st.columns(3)
+with rcol1:
+    rec_budget = st.slider("Max budget (₹)", price_min, price_max, price_max // 2, key="rec_budget")
+with rcol2:
+    rec_min_ram = st.selectbox("Min RAM (GB)", sorted(df["ram_memory"].unique()), key="rec_ram")
+with rcol3:
+    rec_use_case = st.selectbox(
+        "Primary use", ["Any", "Gaming", "Office / Productivity", "Content creation"], key="rec_use_case"
+    )
+
+use_case_masks = {
+    "Gaming": df["gpu_type"].astype(str).str.contains("RTX|GTX|Radeon", case=False, na=False),
+    "Office / Productivity": df["num_cores"] <= 8,
+    "Content creation": df["ram_memory"] >= 16,
+    "Any": pd.Series(True, index=df.index),
+}
+
+recommendations = (
+    df[
+        (df["Price"] <= rec_budget)
+        & (df["ram_memory"] >= rec_min_ram)
+        & use_case_masks[rec_use_case]
+    ]
+    .sort_values("Rating", ascending=False)
+    .head(5)
+)
+
+if len(recommendations):
+    st.write(f"Top picks within ₹{rec_budget:,} for **{rec_use_case}**:")
+    st.dataframe(
+        recommendations[["brand", "Model", "Price", "Rating", "ram_memory",
+                          "processor_tier", "gpu_type", "Cluster"]],
+        use_container_width=True,
+    )
+else:
+    st.warning("No laptops match those filters — try raising your budget or lowering the RAM requirement.")
 
 st.divider()
 
